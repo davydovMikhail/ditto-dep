@@ -13,4 +13,8 @@ interface IDittoEntryPoint {
     function runWorkflow(address vaultAddress, uint256 workflowId) external;
 
     function cancelWorkflow(uint256 workflowId) external;
+
+    function isRegistered(uint256 workflowId) external view returns(bool);
+
+    function getWorkflowSlice(uint _start, uint _end) external view returns(Workflow[] memory slice);
 }

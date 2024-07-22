@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { IExecutor, MODULE_TYPE_EXECUTOR } from "src/interfaces/IERC7579Module.sol";
-import { IERC7579Account, Execution } from "src/interfaces/IERC7579Account.sol";
+import { MODULE_TYPE_EXECUTOR } from "src/interfaces/IERC7579Module.sol";
+import { IERC7579Account, Execution, ModeCode } from "src/interfaces/IERC7579Account.sol";
 import { IDittoAdapter } from "src/interfaces/IDittoAdapter.sol";
 import { ExecutionLib } from "src/lib/ExecutionLib.sol";
 import { ModeLib } from "src/lib/ModeLib.sol";
 
-contract DittoAdapter is IExecutor, IDittoAdapter {
+contract DittoAdapter is IDittoAdapter {
     
-
     bytes32 private constant ENTRY_POINT_LOGIC_STORAGE_POSITION =
         keccak256("dittoadapter.storage");
 
     function _getLocalStorage()
         internal
-        view
+        pure
         returns (EntryPointStorage storage eps)
     {
         bytes32 position = ENTRY_POINT_LOGIC_STORAGE_POSITION;
@@ -25,8 +24,7 @@ contract DittoAdapter is IExecutor, IDittoAdapter {
     }
 
     function addWorkflow(
-        bytes memory _callData,
-        address _target,
+        Execution[] memory _execution,
         uint256 _count
     ) external {
         EntryPointStorage storage eps = _getLocalStorage();
@@ -36,11 +34,11 @@ contract DittoAdapter is IExecutor, IDittoAdapter {
             workflowKey = eps.workflowIds++;
         }
 
-        Workflow storage newWorkflow = eps.workflows[workflowKey];
+        WorkflowScenario storage newWorkflow = eps.workflows[workflowKey];
+        bytes memory workflow = abi.encode(_execution);
 
-        newWorkflow.workflow = _callData;
+        newWorkflow.workflow = workflow;
         newWorkflow.count = _count;
-        newWorkflow.target = _target;
     }
 
     function executeFromDEP(
@@ -51,16 +49,32 @@ contract DittoAdapter is IExecutor, IDittoAdapter {
         returns (bytes[] memory returnData)
     {
         EntryPointStorage storage eps = _getLocalStorage();
-        Workflow storage currentWorkflow = eps.workflows[workflowId];
+        WorkflowScenario storage currentWorkflow = eps.workflows[workflowId];
 
         if(currentWorkflow.count == 0) {
             revert CounterLimitReached();
         }
         currentWorkflow.count--;
-        
-        return IERC7579Account(vault7579).executeFromExecutor(
-            ModeLib.encodeSimpleSingle(), ExecutionLib.encodeSingle(currentWorkflow.target, 0, currentWorkflow.workflow)
-        );
+
+        (Execution[] memory executions) = abi.decode(currentWorkflow.workflow, (Execution[]));
+
+        if(executions.length > 1) {
+            return IERC7579Account(vault7579).executeFromExecutor(
+                ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions)
+            );
+        } else {
+            return IERC7579Account(vault7579).executeFromExecutor(
+                ModeLib.encodeSimpleSingle(), ExecutionLib.encodeSingle(executions[0].target, executions[0].value, executions[0].callData)
+            );
+        }
+    }
+
+    function getWorkflow(uint256 workflowId) external view returns(WorkflowScenario memory wf) {
+        wf = _getLocalStorage().workflows[workflowId];
+    }
+
+    function getNextWorkflowId() external view returns(uint256 lastId) {
+        lastId = _getLocalStorage().workflowIds;
     }
 
     function onInstall(bytes calldata data) external override { }

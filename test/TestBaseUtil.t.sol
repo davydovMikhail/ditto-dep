@@ -47,6 +47,12 @@ contract TestBaseUtil is BootstrapUtil, Test {
 
     }
 
+    function newWallet(string memory name) internal returns (Vm.Wallet memory) {
+        Vm.Wallet memory wallet = vm.createWallet(name);
+        vm.label(wallet.addr, name);
+        return wallet;
+    }
+
     function getAccountAndInitCode() internal returns (address account, bytes memory initCode) {
         // Create config for initial modules
         BootstrapConfig[] memory validators = makeBootstrapConfig(address(defaultValidator), "");

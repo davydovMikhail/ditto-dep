@@ -23,6 +23,11 @@ contract DittoAdapter is IDittoAdapter {
         }
     }
 
+    function init() external {
+        require(_getLocalStorage().dep == address(0), "Already init");
+        _getLocalStorage().dep = msg.sender; 
+    }
+
     function addWorkflow(
         Execution[] memory _execution,
         uint256 _count
@@ -49,6 +54,10 @@ contract DittoAdapter is IDittoAdapter {
         returns (bytes[] memory returnData)
     {
         EntryPointStorage storage eps = _getLocalStorage();
+        if(eps.dep != msg.sender) {
+            revert DEP_Unauthorized();
+        }
+
         WorkflowScenario storage currentWorkflow = eps.workflows[workflowId];
 
         if(currentWorkflow.count == 0) {
@@ -67,6 +76,10 @@ contract DittoAdapter is IDittoAdapter {
                 ModeLib.encodeSimpleSingle(), ExecutionLib.encodeSingle(executions[0].target, executions[0].value, executions[0].callData)
             );
         }
+    }
+
+    function dittoEntryPoint() external view returns(address depAddress) {
+        depAddress = _getLocalStorage().dep;
     }
 
     function getWorkflow(uint256 workflowId) external view returns(WorkflowScenario memory wf) {

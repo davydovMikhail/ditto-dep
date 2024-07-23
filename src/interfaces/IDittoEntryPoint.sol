@@ -3,6 +3,8 @@ pragma solidity ^0.8.23;
 
 interface IDittoEntryPoint {
 
+    error OperatorUnauthorized();
+
     struct Workflow {
         address vaultAddress;
         uint256 workflowId;

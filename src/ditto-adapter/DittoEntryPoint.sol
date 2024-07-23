@@ -12,13 +12,23 @@ contract DittoEntryPoint is IDittoEntryPoint {
     Workflow[] historyWorkflow;
     IDittoAdapter adapter;
     mapping(uint256 => bool) private _registered;
+    address private dittoOperator;
 
-    constructor(address _dittoAdapter) {
+    constructor(address _dittoAdapter, address _dittoOperator) {
         adapter = IDittoAdapter(_dittoAdapter);
+        adapter.init();
+        dittoOperator = _dittoOperator;
+    }
+
+    modifier onlyOperator {
+        if(msg.sender != dittoOperator) {
+            revert OperatorUnauthorized();
+        }
+        _;
     }
 
     // Registers a workflow associated with a vault
-    function registerWorkflow(uint256 workflowId) external {
+    function registerWorkflow(uint256 workflowId) external onlyOperator {
         _registered[workflowId] = true;
     }
 
@@ -37,7 +47,7 @@ contract DittoEntryPoint is IDittoEntryPoint {
     }
     
     // Cancels a workflow and removes it from active workflows
-    function cancelWorkflow(uint256 workflowId) external {
+    function cancelWorkflow(uint256 workflowId) external onlyOperator {
         _registered[workflowId] = false;
     }
 

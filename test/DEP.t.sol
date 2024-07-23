@@ -19,11 +19,14 @@ contract DittoEntryPointTest is TestBaseUtil {
     IDittoAdapter adapterModule;
     IDittoEntryPoint dittoEntryPoint;
     IMockTarget targetCounter;
+    Vm.Wallet dittoOperator;
     
     function setUp() public override {
         super.setUp();
         adapterModule = new DittoAdapter();
-        dittoEntryPoint = new DittoEntryPoint(address(adapterModule));
+        dittoOperator = newWallet("DITTO_OPERATOR");
+        dittoEntryPoint = new DittoEntryPoint(address(adapterModule), dittoOperator.addr);
+        assertEq(adapterModule.dittoEntryPoint(), address(dittoEntryPoint));
         targetCounter = new MockTarget();
     }
 
@@ -114,6 +117,7 @@ contract DittoEntryPointTest is TestBaseUtil {
     }
 
     function testFuzz_Registration(uint256 workflowId) public {
+        vm.prank(dittoOperator.addr);
         dittoEntryPoint.registerWorkflow(workflowId);
         assertEq(dittoEntryPoint.isRegistered(workflowId), true);
     }
